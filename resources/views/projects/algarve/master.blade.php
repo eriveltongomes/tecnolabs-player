@@ -34,6 +34,10 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         select option { background-color: #111827; color: white; padding: 10px; }
 
+        /* CONTROLES DE VÍDEO CUSTOMIZADOS 
+           Esconde o botão de fullscreen nativo para evitar que o X suma */
+        video::-webkit-media-controls-fullscreen-button { display: none !important; }
+
         /* Estilização do Teclado Virtual (Dark Mode) */
         .simple-keyboard {
             background-color: rgba(15, 23, 42, 0.95) !important;
@@ -146,13 +150,29 @@
     </div>
 
     <div id="lightbox" class="fixed inset-0 z-[70] hidden bg-black/95 backdrop-blur-xl flex items-center justify-center p-8 opacity-0 transition-opacity duration-300 select-none">
-        <button onclick="closeLightbox()" class="absolute top-8 right-8 text-white/50 hover:text-white transition-colors z-50 bg-black/50 p-2 rounded-full border border-white/10 hover:border-[#C5A065]"><i data-lucide="x" class="w-8 h-8"></i></button>
-        <button onclick="navigateLightbox(-1)" class="absolute left-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#C5A065] transition-all z-50 p-4 hover:scale-110"><i data-lucide="chevron-left" class="w-16 h-16"></i></button>
-        <button onclick="navigateLightbox(1)" class="absolute right-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#C5A065] transition-all z-50 p-4 hover:scale-110"><i data-lucide="chevron-right" class="w-16 h-16"></i></button>
+        
+        <button onclick="closeLightbox()" class="absolute top-8 right-8 text-white/50 hover:text-white transition-colors z-50 bg-black/50 p-2 rounded-full border border-white/10 hover:border-[#C5A065]">
+            <i data-lucide="x" class="w-8 h-8"></i>
+        </button>
+        
+        <button id="lbPrev" onclick="navigateLightbox(-1)" class="absolute left-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#C5A065] transition-all z-50 p-4 hover:scale-110">
+            <i data-lucide="chevron-left" class="w-16 h-16"></i>
+        </button>
+        <button id="lbNext" onclick="navigateLightbox(1)" class="absolute right-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#C5A065] transition-all z-50 p-4 hover:scale-110">
+            <i data-lucide="chevron-right" class="w-16 h-16"></i>
+        </button>
+
         <div id="touchArea" class="absolute inset-0 z-40" onmousedown="handleTouchStart(event)" onmouseup="handleTouchEnd(event)" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)"></div>
+        
         <img id="lightboxImage" src="" class="hidden max-w-full max-h-full border border-[#C5A065]/50 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-sm scale-95 transition-transform duration-300 relative z-30 pointer-events-none">
-        <video id="lightboxVideo" controls class="hidden max-w-full max-h-full border border-[#C5A065]/50 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-sm relative z-50"><source id="lightboxVideoSource" src="" type="video/mp4"></video>
-        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs tracking-widest uppercase z-50"><span id="lbCurrent">1</span> / <span id="lbTotal">10</span></div>
+        
+        <video id="lightboxVideo" controls controlsList="nodownload nofullscreen noremoteplayback" class="hidden max-w-full max-h-full border border-[#C5A065]/50 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-sm relative z-50">
+            <source id="lightboxVideoSource" src="" type="video/mp4">
+        </video>
+        
+        <div id="lbCounter" class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs tracking-widest uppercase z-50">
+            <span id="lbCurrent">1</span> / <span id="lbTotal">10</span>
+        </div>
     </div>
 
     <div class="simple-keyboard"></div>
@@ -164,11 +184,45 @@
         let globalData = null; 
         let filterStatus = 'all'; let filterBlock = 'all'; let filterFloor = 'all';
         let currentGalleryList = []; let currentImageIndex = 0; let filterDate = 'all';
-        
-        // --- TECLADO VIRTUAL ---
-        let keyboard;
-        let selectedInput;
+        let isGalleryMode = true; // Flag para saber se estamos em galeria ou vendo planta avulsa
 
+        // --- GESTÃO DE INATIVIDADE (5 MINUTOS) ---
+        let idleTime = 0;
+        const idleLimit = 5 * 60; // 5 minutos em segundos
+
+        function timerIncrement() {
+            idleTime++;
+            // Se passar do limite, volta pra home e atualiza
+            if (idleTime >= idleLimit) {
+                // Só executa se não estiver na home ou se tiver algum modal aberto
+                const isHome = !document.getElementById('screenMenu').classList.contains('hidden');
+                const isModalOpen = !document.getElementById('lightbox').classList.contains('hidden') || !document.getElementById('modalUnitDetail').classList.contains('hidden');
+
+                if (!isHome || isModalOpen) {
+                    console.log("Inatividade detectada. Reiniciando...");
+                    closeLightbox();
+                    toggleUnitModal(false);
+                    goHome();
+                    // Reinicia o sistema para puxar atualizações (unidades vendidas, etc)
+                    initSystem(); 
+                }
+                idleTime = 0;
+            }
+        }
+
+        // Reseta o timer em qualquer interação
+        function resetIdleTimer() { idleTime = 0; }
+        document.body.addEventListener('mousemove', resetIdleTimer);
+        document.body.addEventListener('mousedown', resetIdleTimer);
+        document.body.addEventListener('keypress', resetIdleTimer);
+        document.body.addEventListener('touchstart', resetIdleTimer);
+        document.body.addEventListener('click', resetIdleTimer);
+        
+        // Inicia o contador de inatividade
+        setInterval(timerIncrement, 1000);
+
+        // --- TECLADO VIRTUAL ---
+        let keyboard; let selectedInput;
         function initKeyboard() {
             const Keyboard = window.SimpleKeyboard.default;
             keyboard = new Keyboard({
@@ -176,77 +230,25 @@
                 onKeyPress: button => onKeyPress(button),
                 theme: "hg-theme-default hg-layout-default myTheme",
                 layout: {
-                    'default': [
-                        '1 2 3 4 5 6 7 8 9 0 {bksp}',
-                        'q w e r t y u i o p',
-                        'a s d f g h j k l',
-                        '{shift} z x c v b n m @ .com',
-                        '{space}'
-                    ],
-                    'shift': [
-                        '1 2 3 4 5 6 7 8 9 0 {bksp}',
-                        'Q W E R T Y U I O P',
-                        'A S D F G H J K L',
-                        '{shift} Z X C V B N M @ .com',
-                        '{space}'
-                    ]
+                    'default': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'q w e r t y u i o p', 'a s d f g h j k l', '{shift} z x c v b n m @ .com', '{space}' ],
+                    'shift': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'Q W E R T Y U I O P', 'A S D F G H J K L', '{shift} Z X C V B N M @ .com', '{space}' ]
                 }
             });
-
-            // Ativa o teclado ao focar no input
             document.querySelectorAll(".input-keyboard").forEach(input => {
                 input.addEventListener("focus", onInputFocus);
-                // Previne zoom em mobile se necessário
-                input.addEventListener("click", (e) => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                });
+                input.addEventListener("click", (e) => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
             });
-
-            // Oculta teclado se clicar fora
             document.addEventListener("click", (event) => {
-                if (
-                    !event.target.classList.contains("input-keyboard") &&
-                    !event.target.closest(".simple-keyboard") && 
-                    !event.target.classList.contains("hg-button")
-                ) {
-                    hideKeyboard();
-                }
+                if (!event.target.classList.contains("input-keyboard") && !event.target.closest(".simple-keyboard") && !event.target.classList.contains("hg-button")) { hideKeyboard(); }
             });
         }
-
-        function onInputFocus(event) {
-            selectedInput = event.target;
-            keyboard.setOptions({ inputName: event.target.id });
-            keyboard.setInput(event.target.value);
-            showKeyboard();
-        }
-
-        function onChange(input) {
-            if(selectedInput) {
-                selectedInput.value = input;
-                // Dispara evento de input para a máscara funcionar
-                selectedInput.dispatchEvent(new Event('input'));
-            }
-        }
-
-        function onKeyPress(button) {
-            if (button === "{shift}" || button === "{lock}") handleShift();
-        }
-
-        function handleShift() {
-            let currentLayout = keyboard.options.layoutName;
-            let shiftToggle = currentLayout === "default" ? "shift" : "default";
-            keyboard.setOptions({ layoutName: shiftToggle });
-        }
-
+        function onInputFocus(event) { selectedInput = event.target; keyboard.setOptions({ inputName: event.target.id }); keyboard.setInput(event.target.value); showKeyboard(); }
+        function onChange(input) { if(selectedInput) { selectedInput.value = input; selectedInput.dispatchEvent(new Event('input')); } }
+        function onKeyPress(button) { if (button === "{shift}" || button === "{lock}") handleShift(); }
+        function handleShift() { let currentLayout = keyboard.options.layoutName; let shiftToggle = currentLayout === "default" ? "shift" : "default"; keyboard.setOptions({ layoutName: shiftToggle }); }
         function showKeyboard() { document.querySelector(".simple-keyboard").style.display = "block"; }
         function hideKeyboard() { document.querySelector(".simple-keyboard").style.display = "none"; }
-
-        // --- MÁSCARA DE TELEFONE ---
-        document.getElementById('leadPhone').addEventListener('input', function (e) {
-            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-            e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
-        });
+        document.getElementById('leadPhone').addEventListener('input', function (e) { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); });
 
         // --- BLOQUEIOS E ATALHOS ---
         document.addEventListener('contextmenu', event => event.preventDefault()); 
@@ -270,7 +272,7 @@
                 
                 renderMenu(globalData.categories);
                 if(typeof lucide !== 'undefined') lucide.createIcons();
-                initKeyboard(); // Inicia o teclado
+                initKeyboard(); 
 
                 document.getElementById('loading').classList.add('opacity-0', 'pointer-events-none');
                 document.getElementById('app').classList.remove('opacity-0');
@@ -281,12 +283,11 @@
             }
         }
 
-        // Funções de Renderização (Mantidas e Ajustadas)
+        // Funções de Renderização
         function renderMenu(categories) {
             const grid = document.getElementById('menuGrid'); grid.innerHTML = ''; 
             if(!categories || categories.length === 0) { grid.innerHTML = '<p class="text-white col-span-3 text-center">Vazio.</p>'; return; }
             categories.forEach(cat => {
-                // ... (Lógica de ícones igual ao anterior) ...
                 const btn = document.createElement('div');
                 let iconName = 'image'; const name = cat.name.toLowerCase();
                 if(name.includes('obra')) iconName = 'hard-hat';
@@ -304,7 +305,7 @@
         }
 
         function openCategory(cat) {
-            hideKeyboard(); // Fecha teclado ao mudar tela
+            hideKeyboard(); 
             if(cat.type === '360') { window.location.href = `/storage/tours/${cat.id}/index.html`; return; }
             document.getElementById('screenMenu').classList.add('hidden');
             document.getElementById('screenContent').classList.remove('hidden');
@@ -326,10 +327,8 @@
             // 1. ESQUERDA: FOTO DO PRÉDIO
             const buildingImage = globalData.project.facade_image ? '/storage/' + globalData.project.facade_image : '';
             const leftCol = document.createElement('div');
-            // Mudei para w-[40%] para dar um pouco mais de destaque à imagem e reduzir distorção
             leftCol.className = "w-[40%] h-full relative border-r border-[#C5A065]/20 hidden lg:block bg-black"; 
             
-            // AQUI ESTÁ A MUDANÇA: 'bg-cover' (Preenche tudo) em vez de 'bg-contain'
             leftCol.innerHTML = `
                 <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('${buildingImage}');"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div> <div class="absolute bottom-8 left-8">
@@ -341,9 +340,8 @@
 
             // 2. DIREITA: LISTA E FILTROS
             const rightCol = document.createElement('div');
-            rightCol.className = "w-full lg:w-[60%] h-full flex flex-col bg-gray-900 relative"; // Ajustei para 60%
+            rightCol.className = "w-full lg:w-[60%] h-full flex flex-col bg-gray-900 relative"; 
 
-            // Header da Lista
             const uniqueBlocks = [...new Set(globalData.units.map(u => u.block || 'Torre Única'))].sort();
             const uniqueFloors = [...new Set(globalData.units.map(u => u.floor))].sort((a,b) => a - b);
 
@@ -373,7 +371,6 @@
             `;
             rightCol.appendChild(header);
 
-            // Scroll Area
             const scrollArea = document.createElement('div');
             scrollArea.id = "unitsScrollArea";
             scrollArea.className = "flex-grow overflow-y-auto p-8 hide-scrollbar scroll-smooth relative";
@@ -401,52 +398,45 @@
                 sortedFloors.forEach(floor => {
                     contentHtml += `<div class="animate-fade-in"><div class="flex items-center gap-3 mb-4"><span class="bg-[#C5A065] text-black px-3 py-1 rounded text-xs font-bold shadow-lg">${floor}º ANDAR</span><div class="h-[1px] bg-[#C5A065]/20 flex-grow"></div></div><div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">`;
                     floors[floor].forEach(u => {
-                        // CORES DOS CARDS
                         let cardBg = "bg-green-900/20 border-green-500/30"; 
                         let statusText = "Disponível";
                         let statusDot = "bg-green-500 shadow-[0_0_8px_#22c55e]";
                         let isClickable = true;
 
                         if(u.status === 'sold') { 
-                            cardBg = "bg-red-900/20 border-red-500/30 opacity-60 grayscale-[0.5]"; // Vermelho escuro
-                            statusText = "Vendido"; 
-                            statusDot = "bg-red-600";
-                            isClickable = false; 
+                            cardBg = "bg-red-900/20 border-red-500/30 opacity-60 grayscale-[0.5]"; 
+                            statusText = "Vendido"; statusDot = "bg-red-600"; isClickable = false; 
                         }
                         if(u.status === 'reserved') { 
-                            cardBg = "bg-yellow-900/20 border-yellow-500/30"; 
-                            statusText = "Reservado"; 
-                            statusDot = "bg-yellow-500";
+                            cardBg = "bg-yellow-900/20 border-yellow-500/30"; statusText = "Reservado"; statusDot = "bg-yellow-500";
                         }
                         if(u.status === 'blocked') { 
-                            cardBg = "bg-gray-800 border-gray-600/30 opacity-50"; 
-                            statusText = "Bloqueado"; 
-                            statusDot = "bg-gray-500";
-                            isClickable = false; 
+                            cardBg = "bg-gray-800 border-gray-600/30 opacity-50"; statusText = "Bloqueado"; statusDot = "bg-gray-500"; isClickable = false; 
                         }
 
                         const clickAction = isClickable ? `onclick="openUnitDetails(${u.id})"` : '';
                         const cursorClass = isClickable ? 'cursor-pointer hover:scale-105 hover:bg-black/60 hover:border-[#C5A065]' : 'cursor-not-allowed';
 
+                        // AQUI ESTAVA O ERRO: Chamando openLightbox com imagem e tipo.
+                        // CORREÇÃO: Chama openStandaloneLightbox()
+                        const floorplanBtn = u.floorplan_image ? `
+                                <button onclick="event.stopPropagation(); openStandaloneLightbox('/storage/${u.floorplan_image}', 'image')" class="text-[10px] text-[#C5A065] border border-[#C5A065]/30 hover:bg-[#C5A065] hover:text-black px-4 py-2 rounded-full transition-colors flex items-center gap-2 w-full justify-center font-bold tracking-wider">
+                                    <i data-lucide="map" class="w-4 h-4"></i> VER PLANTA
+                                </button>
+                                ` : '';
+
                         contentHtml += `
                             <div ${clickAction} class="relative ${cardBg} border p-4 rounded ${cursorClass} flex flex-col items-center text-center transition-all group shadow-lg duration-300 backdrop-blur-sm">
                                 <span class="text-3xl font-bold text-white mb-2 group-hover:text-[#C5A065] transition-colors">${u.unit_number}</span>
-                                
                                 <div class="text-[10px] text-white/70 mb-4 flex flex-col gap-0.5">
                                     <span class="uppercase tracking-wide font-bold">${u.typology || '-'}</span>
                                     <span class="font-mono text-white/50">${u.area ? u.area + 'm²' : ''}</span>
                                 </div>
-
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/5 w-full justify-center mb-4">
                                     <div class="w-2 h-2 rounded-full ${statusDot}"></div>
                                     <span class="text-[9px] uppercase tracking-wider text-white font-bold">${statusText}</span>
                                 </div>
-
-                                ${u.floorplan_image ? `
-                                <button onclick="event.stopPropagation(); openLightbox('/storage/${u.floorplan_image}', 'image')" class="text-[10px] text-[#C5A065] border border-[#C5A065]/30 hover:bg-[#C5A065] hover:text-black px-4 py-2 rounded-full transition-colors flex items-center gap-2 w-full justify-center font-bold tracking-wider">
-                                    <i data-lucide="map" class="w-4 h-4"></i> VER PLANTA
-                                </button>
-                                ` : ''}
+                                ${floorplanBtn}
                             </div>
                         `;
                     });
@@ -456,7 +446,6 @@
                 scrollArea.innerHTML = contentHtml;
             }
             rightCol.appendChild(scrollArea);
-
             if(hasUnits) {
                 const controls = document.createElement('div');
                 controls.className = "absolute right-6 bottom-8 flex flex-col gap-4 z-30";
@@ -467,7 +456,6 @@
             lucide.createIcons();
         }
 
-        // ... (Funções updateFilters, openUnitDetails, toggleUnitModal, renderMasterplan, renderGallery, renderPins, scroll, home, lightbox iguais ao anterior) ...
         function updateFilters(type, value) { if(type === 'block') filterBlock = value; if(type === 'floor') filterFloor = value; if(type === 'status') filterStatus = value; const container = document.getElementById('mediaContainer'); renderAvailabilityTable(container); }
         function openUnitDetails(unitId) {
             const unit = globalData.units.find(u => u.id === unitId); if(!unit) return;
@@ -478,13 +466,130 @@
         }
         function toggleUnitModal(show) { const el = document.getElementById('modalUnitDetail'); if(show) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); hideKeyboard(); } }
         function renderMasterplan(container) { const facadeUrl = globalData.project.facade_image ? '/storage/' + globalData.project.facade_image : ''; container.innerHTML = `<button onclick="goHome()" class="absolute top-6 left-6 z-50 bg-black/60 border border-[#C5A065]/50 text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-[#C5A065] hover:text-black transition-all backdrop-blur-md shadow-lg"><i data-lucide="arrow-left" class="w-4 h-4"></i> <span class="text-xs font-bold tracking-widest">MENU</span></button><div class="absolute inset-0 z-0 select-none"><img src="${facadeUrl}" class="w-full h-full object-cover" alt="Fachada"><div id="pinsLayer" class="absolute inset-0 z-10 w-full h-full"></div></div><div class="absolute bottom-8 left-8 z-20 pointer-events-none"><div class="pointer-events-auto bg-black/80 border-l-2 border-[#C5A065] p-6 backdrop-blur-md shadow-2xl animate-fade-in"><h3 class="text-2xl font-bold text-white mb-1 font-serif">IMPLANTAÇÃO</h3><p class="text-[#C5A065] text-xs uppercase tracking-widest mb-4">Selecione uma unidade</p><div class="flex gap-4 text-[10px] uppercase tracking-wider text-white/60"><div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_green]"></div> Disp.</div><div class="flex items-center gap-2"><div class="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_5px_red]"></div> Vendido</div></div></div></div>`; renderPins(); }
-        function renderGallery(container, cat, showFilter = false) { container.innerHTML = ''; container.className = "w-full h-full flex flex-col relative bg-gray-900/90 backdrop-blur-sm rounded-lg overflow-hidden border border-[#C5A065]/20"; const headerContainer = document.createElement('div'); headerContainer.className = "w-full p-6 border-b border-[#C5A065]/20 bg-gray-900/95 z-30 shrink-0 flex items-center justify-center relative"; const leftElements = document.createElement('div'); leftElements.className = "flex items-center gap-4 absolute left-6"; leftElements.innerHTML = `<button onclick="goHome()" class="bg-[#C5A065] text-black px-4 py-2 rounded-full flex items-center gap-2 hover:bg-white transition-all shadow-lg"><i data-lucide="arrow-left" class="w-4 h-4"></i> <span class="text-xs font-bold tracking-widest">MENU</span></button><h2 class="text-xl text-[#C5A065] font-serif uppercase tracking-widest hidden md:block">${cat.name}</h2>`; headerContainer.appendChild(leftElements); if(showFilter) { const dates = new Set(); const rawMedia = globalData.media.filter(m => m.media_category_id === cat.id); rawMedia.forEach(m => { if(m.created_at) { const date = new Date(m.created_at); const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); dates.add(label); } }); if(dates.size > 0) { let options = `<option value="all">Todo o Período</option>`; dates.forEach(d => { const label = d.charAt(0).toUpperCase() + d.slice(1); options += `<option value="${d}" ${filterDate === d ? 'selected' : ''}>${label}</option>`; }); const filterWrapper = document.createElement('div'); filterWrapper.innerHTML = `<select id="galleryDateFilter" onchange="updateGalleryFilter('${cat.id}', this.value)" class="bg-black/50 border border-[#C5A065]/40 text-white text-[10px] uppercase p-2 rounded focus:border-[#C5A065] outline-none shadow-lg cursor-pointer">${options}</select>`; headerContainer.appendChild(filterWrapper); } } container.appendChild(headerContainer); const scrollArea = document.createElement('div'); scrollArea.className = "flex-grow overflow-y-auto p-8 hide-scrollbar"; const grid = document.createElement('div'); grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"; let filteredMedia = globalData.media.filter(m => m.media_category_id === cat.id); if(showFilter && filterDate !== 'all') { filteredMedia = filteredMedia.filter(m => { if(!m.created_at) return false; const date = new Date(m.created_at); const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); return label === filterDate; }); } currentGalleryList = filteredMedia; if(filteredMedia.length === 0) { grid.innerHTML = `<div class="col-span-3 flex flex-col items-center justify-center text-[#C5A065]/40 h-64 gap-4"><i data-lucide="image-off" class="w-12 h-12"></i><p>Nenhuma imagem encontrada.</p></div>`; } else { filteredMedia.forEach((m, index) => { const url = '/storage/' + m.path; const item = document.createElement('div'); item.className = "relative group aspect-video bg-black/50 border border-[#C5A065]/20 hover:border-[#C5A065] rounded-sm overflow-hidden cursor-pointer shadow-lg transition-all hover:-translate-y-1"; if(m.file_type === 'video' || url.endsWith('.mp4')) { item.innerHTML = `<video src="${url}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video><div class="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none"><i data-lucide="play-circle" class="w-16 h-16 text-[#C5A065] drop-shadow-lg group-hover:scale-110 transition-transform"></i></div>`; item.onclick = () => openLightbox(index); } else { item.innerHTML = `<img src="${url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-80 group-hover:opacity-100">`; item.onclick = () => openLightbox(index); } grid.appendChild(item); }); } scrollArea.appendChild(grid); container.appendChild(scrollArea); }
+        
+        function renderGallery(container, cat, showFilter = false) { 
+            container.innerHTML = ''; container.className = "w-full h-full flex flex-col relative bg-gray-900/90 backdrop-blur-sm rounded-lg overflow-hidden border border-[#C5A065]/20"; const headerContainer = document.createElement('div'); headerContainer.className = "w-full p-6 border-b border-[#C5A065]/20 bg-gray-900/95 z-30 shrink-0 flex items-center justify-center relative"; const leftElements = document.createElement('div'); leftElements.className = "flex items-center gap-4 absolute left-6"; leftElements.innerHTML = `<button onclick="goHome()" class="bg-[#C5A065] text-black px-4 py-2 rounded-full flex items-center gap-2 hover:bg-white transition-all shadow-lg"><i data-lucide="arrow-left" class="w-4 h-4"></i> <span class="text-xs font-bold tracking-widest">MENU</span></button><h2 class="text-xl text-[#C5A065] font-serif uppercase tracking-widest hidden md:block">${cat.name}</h2>`; headerContainer.appendChild(leftElements); if(showFilter) { const dates = new Set(); const rawMedia = globalData.media.filter(m => m.media_category_id === cat.id); rawMedia.forEach(m => { if(m.created_at) { const date = new Date(m.created_at); const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); dates.add(label); } }); if(dates.size > 0) { let options = `<option value="all">Todo o Período</option>`; dates.forEach(d => { const label = d.charAt(0).toUpperCase() + d.slice(1); options += `<option value="${d}" ${filterDate === d ? 'selected' : ''}>${label}</option>`; }); const filterWrapper = document.createElement('div'); filterWrapper.innerHTML = `<select id="galleryDateFilter" onchange="updateGalleryFilter('${cat.id}', this.value)" class="bg-black/50 border border-[#C5A065]/40 text-white text-[10px] uppercase p-2 rounded focus:border-[#C5A065] outline-none shadow-lg cursor-pointer">${options}</select>`; headerContainer.appendChild(filterWrapper); } } container.appendChild(headerContainer); const scrollArea = document.createElement('div'); scrollArea.className = "flex-grow overflow-y-auto p-8 hide-scrollbar"; const grid = document.createElement('div'); grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"; let filteredMedia = globalData.media.filter(m => m.media_category_id === cat.id); if(showFilter && filterDate !== 'all') { filteredMedia = filteredMedia.filter(m => { if(!m.created_at) return false; const date = new Date(m.created_at); const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); return label === filterDate; }); } currentGalleryList = filteredMedia; if(filteredMedia.length === 0) { grid.innerHTML = `<div class="col-span-3 flex flex-col items-center justify-center text-[#C5A065]/40 h-64 gap-4"><i data-lucide="image-off" class="w-12 h-12"></i><p>Nenhuma imagem encontrada.</p></div>`; } else { filteredMedia.forEach((m, index) => { const url = '/storage/' + m.path; const item = document.createElement('div'); item.className = "relative group aspect-video bg-black/50 border border-[#C5A065]/20 hover:border-[#C5A065] rounded-sm overflow-hidden cursor-pointer shadow-lg transition-all hover:-translate-y-1"; if(m.file_type === 'video' || url.endsWith('.mp4')) { item.innerHTML = `<video src="${url}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video><div class="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none"><i data-lucide="play-circle" class="w-16 h-16 text-[#C5A065] drop-shadow-lg group-hover:scale-110 transition-transform"></i></div>`; item.onclick = () => openLightbox(index); } else { item.innerHTML = `<img src="${url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-80 group-hover:opacity-100">`; item.onclick = () => openLightbox(index); } grid.appendChild(item); }); } scrollArea.appendChild(grid); container.appendChild(scrollArea); 
+        }
+
         function updateGalleryFilter(catId, value) { filterDate = value; const cat = globalData.categories.find(c => c.id == catId); const container = document.getElementById('mediaContainer'); renderGallery(container, cat, true); lucide.createIcons(); }
-        function openLightbox(index) { currentImageIndex = index; updateLightboxContent(); const lb = document.getElementById('lightbox'); lb.classList.remove('hidden'); setTimeout(() => lb.classList.remove('opacity-0'), 10); }
-        function updateLightboxContent() { const m = currentGalleryList[currentImageIndex]; const url = '/storage/' + m.path; const isVideo = m.file_type === 'video' || url.endsWith('.mp4'); const img = document.getElementById('lightboxImage'); const vid = document.getElementById('lightboxVideo'); const vidSrc = document.getElementById('lightboxVideoSource'); const counter = document.getElementById('lbCurrent'); const total = document.getElementById('lbTotal'); counter.innerText = currentImageIndex + 1; total.innerText = currentGalleryList.length; img.classList.add('hidden'); vid.classList.add('hidden'); vid.pause(); if (isVideo) { vidSrc.src = url; vid.load(); vid.classList.remove('hidden'); setTimeout(() => vid.play(), 300); } else { img.src = url; img.classList.remove('hidden'); img.classList.remove('scale-100'); img.classList.add('scale-95'); setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50); } }
-        function navigateLightbox(direction) { let newIndex = currentImageIndex + direction; if(newIndex >= currentGalleryList.length) newIndex = 0; if(newIndex < 0) newIndex = currentGalleryList.length - 1; currentImageIndex = newIndex; updateLightboxContent(); }
-        function closeLightbox() { const lb = document.getElementById('lightbox'); const vid = document.getElementById('lightboxVideo'); lb.classList.add('opacity-0'); setTimeout(() => { lb.classList.add('hidden'); vid.pause(); vid.src = ''; }, 300); }
-        let touchStartX = 0; let touchEndX = 0; function handleTouchStart(e) { touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; } function handleTouchEnd(e) { touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; handleSwipe(); } function handleSwipe() { const threshold = 50; if (touchEndX < touchStartX - threshold) navigateLightbox(1); if (touchEndX > touchStartX + threshold) navigateLightbox(-1); }
+        
+        // --- FUNÇÃO PARA ABRIR LIGHTBOX DE GALERIA ---
+        function openLightbox(index) { 
+            isGalleryMode = true; // Ativa modo galeria (setas aparecem)
+            currentImageIndex = index; 
+            updateLightboxContent(); 
+            const lb = document.getElementById('lightbox'); 
+            lb.classList.remove('hidden'); 
+            setTimeout(() => lb.classList.remove('opacity-0'), 10); 
+        }
+
+        // --- NOVA FUNÇÃO PARA ABRIR IMAGEM AVULSA (PLANTA) ---
+        function openStandaloneLightbox(url, type) {
+            isGalleryMode = false; // Desativa modo galeria (setas somem)
+            const lb = document.getElementById('lightbox');
+            const img = document.getElementById('lightboxImage');
+            const vid = document.getElementById('lightboxVideo');
+            const navPrev = document.getElementById('lbPrev');
+            const navNext = document.getElementById('lbNext');
+            const counter = document.getElementById('lbCounter');
+
+            // Esconde navegação
+            navPrev.classList.add('hidden');
+            navNext.classList.add('hidden');
+            counter.classList.add('hidden');
+
+            // Reseta mídia
+            img.classList.add('hidden');
+            vid.classList.add('hidden');
+            vid.pause();
+
+            // Mostra a imagem
+            img.src = url;
+            img.classList.remove('hidden');
+            img.classList.remove('scale-100');
+            img.classList.add('scale-95');
+            setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50);
+
+            // Abre o lightbox
+            lb.classList.remove('hidden');
+            setTimeout(() => lb.classList.remove('opacity-0'), 10);
+        }
+
+        function updateLightboxContent() { 
+            const m = currentGalleryList[currentImageIndex]; 
+            const url = '/storage/' + m.path; 
+            const isVideo = m.file_type === 'video' || url.endsWith('.mp4'); 
+            const img = document.getElementById('lightboxImage'); 
+            const vid = document.getElementById('lightboxVideo'); 
+            const vidSrc = document.getElementById('lightboxVideoSource'); 
+            const counter = document.getElementById('lbCurrent'); 
+            const total = document.getElementById('lbTotal'); 
+            
+            // Controle de visibilidade da navegação
+            const navPrev = document.getElementById('lbPrev');
+            const navNext = document.getElementById('lbNext');
+            const counterBox = document.getElementById('lbCounter');
+            
+            if(isGalleryMode) {
+                navPrev.classList.remove('hidden');
+                navNext.classList.remove('hidden');
+                counterBox.classList.remove('hidden');
+            } else {
+                navPrev.classList.add('hidden');
+                navNext.classList.add('hidden');
+                counterBox.classList.add('hidden');
+            }
+
+            counter.innerText = currentImageIndex + 1; 
+            total.innerText = currentGalleryList.length; 
+            img.classList.add('hidden'); 
+            vid.classList.add('hidden'); 
+            vid.pause(); 
+            
+            if (isVideo) { 
+                vidSrc.src = url; 
+                vid.load(); // Garante o recarregamento
+                vid.classList.remove('hidden'); 
+                setTimeout(() => vid.play(), 300); 
+            } else { 
+                img.src = url; 
+                img.classList.remove('hidden'); 
+                img.classList.remove('scale-100'); 
+                img.classList.add('scale-95'); 
+                setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50); 
+            } 
+        }
+
+        function navigateLightbox(direction) { 
+            if(!isGalleryMode) return;
+            let newIndex = currentImageIndex + direction; 
+            if(newIndex >= currentGalleryList.length) newIndex = 0; 
+            if(newIndex < 0) newIndex = currentGalleryList.length - 1; 
+            currentImageIndex = newIndex; 
+            updateLightboxContent(); 
+        }
+
+        function closeLightbox() { 
+            const lb = document.getElementById('lightbox'); 
+            const vid = document.getElementById('lightboxVideo'); 
+            lb.classList.add('opacity-0'); 
+            setTimeout(() => { 
+                lb.classList.add('hidden'); 
+                vid.pause(); 
+                // Não limpamos o src aqui para evitar bugs de loading, mas garantimos o pause
+            }, 300); 
+        }
+
+        let touchStartX = 0; let touchEndX = 0; 
+        function handleTouchStart(e) { touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; } 
+        function handleTouchEnd(e) { touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; handleSwipe(); } 
+        function handleSwipe() { 
+            if(!isGalleryMode) return;
+            const threshold = 50; 
+            if (touchEndX < touchStartX - threshold) navigateLightbox(1); 
+            if (touchEndX > touchStartX + threshold) navigateLightbox(-1); 
+        }
+        
         function renderPins() { const pinsLayer = document.getElementById('pinsLayer'); globalData.units.forEach(u => { if(u.map_x && u.map_y) { const pin = document.createElement('div'); pin.className = "absolute cursor-pointer group hover:z-50 flex items-center justify-center"; pin.style.width = "10%"; pin.style.height = "7%"; pin.style.left = (u.map_x.toString().includes('%') ? u.map_x : u.map_x + '%'); pin.style.top = (u.map_y.toString().includes('%') ? u.map_y : u.map_y + '%'); pin.style.transform = "translate(-50%, -50%)"; pin.innerHTML = `<div class="absolute inset-0 transition-all duration-200 opacity-0 group-hover:opacity-100 border border-[#C5A065] bg-[#C5A065]/20 shadow-[0_0_15px_rgba(197,160,101,0.4)]"></div>`; pin.onclick = () => openUnitDetails(u.id); pinsLayer.appendChild(pin); } }); }
         let scrollInterval; function startScroll(speed) { const area = document.getElementById('unitsScrollArea'); if(area) scrollInterval = setInterval(() => { area.scrollBy({ top: speed * 5, behavior: 'auto' }); }, 16); } function stopScroll() { clearInterval(scrollInterval); } function goHome() { document.getElementById('screenContent').classList.add('hidden'); document.getElementById('screenMenu').classList.remove('hidden'); }
         async function submitLead(e) { e.preventDefault(); const btn = document.getElementById('btnSubmitLead'); btn.innerHTML = "ENVIANDO..."; const data = { project_slug: projectSlug, name: document.getElementById('leadName').value, phone: document.getElementById('leadPhone').value, email: document.getElementById('leadEmail').value, message: 'Interesse: ' + document.getElementById('leadUnit').value }; try { const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if(response.ok) { alert("Sucesso! Entraremos em contato."); toggleUnitModal(false); } } catch(err) { alert("Erro ao enviar."); } btn.innerHTML = "SOLICITAR MATERIAL"; }
