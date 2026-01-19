@@ -21,7 +21,7 @@
 <body class="bg-gray-900 h-screen w-screen flex flex-col items-center justify-center bg-cover bg-center"
       style="background-image: url('{{ $project->intro_image ? asset('storage/' . $project->intro_image) : '/intro-bg.jpg' }}');"> 
     
-    <div class="absolute inset-0 bg-black/30"></div>
+    <div class="absolute inset-0 bg-black/0"></div>
 
     <div class="relative z-10 flex flex-col items-center animate-fade-in mt-[350px]">
         

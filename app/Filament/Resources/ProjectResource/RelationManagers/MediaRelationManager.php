@@ -49,17 +49,21 @@ class MediaRelationManager extends RelationManager
                     FileUpload::make('path')
                         ->label(fn (Forms\Get $get) => $get('file_type') === '360' ? 'Arquivo ZIP (Padrão)' : 'Arquivo de Mídia')
                         ->helperText(fn (Forms\Get $get) => $get('file_type') === '360' ? 'Atenção: Use apenas formato .ZIP (Não use .7z ou .rar). O index.html deve estar dentro.' : '')
+                        // CORREÇÃO DO UPLOAD ZIP: Adicionados MIME types extras para compatibilidade Windows
                         ->acceptedFileTypes([
-                            'image/*', 
+                            'image/jpeg', 
+                            'image/png', 
+                            'image/webp', 
                             'video/mp4', 
                             'application/zip', 
-                            'application/x-zip-compressed', 
                             'application/x-zip', 
-                            'application/octet-stream'
+                            'application/x-zip-compressed',
+                            'multipart/x-zip', 
+                            'application/octet-stream' // Zips do Windows as vezes vem assim
                         ])
                         ->disk('public')
                         ->directory('project-media')
-                        ->maxSize(1024000) // 1GB
+                        ->maxSize(1024000) // 1GB (1024 * 1000)
                         ->required(fn (Forms\Get $get) => empty($get('description'))),
                     
                     TextInput::make('description') 
@@ -82,19 +86,16 @@ class MediaRelationManager extends RelationManager
                         ->disk('public')
                         ->height('180px')
                         ->width('100%')
-                        // A CORREÇÃO ESTÁ AQUI: ?->
                         ->visible(fn ($record) => $record?->file_type === 'image')
                         ->extraImgAttributes(['class' => 'object-cover rounded-t-lg']),
 
                     // 2. SE NÃO FOR IMAGEM (VÍDEO/TOUR): MOSTRA UM ÍCONE GRANDE
                     TextColumn::make('placeholder_icon')
-                        // A CORREÇÃO ESTÁ AQUI: ?->
                         ->default(fn ($record) => match($record?->file_type) {
                             'video' => '🎬',
                             '360' => '🔄',
                             default => '📁'
                         })
-                        // A CORREÇÃO ESTÁ AQUI TAMBÉM: ?->
                         ->visible(fn ($record) => $record?->file_type !== 'image')
                         ->extraAttributes(['class' => 'h-[180px] w-full flex items-center justify-center bg-gray-100 text-6xl rounded-t-lg select-none']),
 
@@ -118,7 +119,14 @@ class MediaRelationManager extends RelationManager
                             ->label('Álbum')
                             ->options(fn (RelationManager $livewire) => $livewire->getOwnerRecord()->mediaCategories->pluck('name', 'id'))
                             ->required(),
-                        FileUpload::make('files')->label('Imagens')->multiple()->image()->disk('public')->directory('project-media')->maxFiles(50)->required(),
+                        FileUpload::make('files')
+                            ->label('Imagens')
+                            ->multiple()
+                            ->image() // Upload múltiplo continua restrito a imagens
+                            ->disk('public')
+                            ->directory('project-media')
+                            ->maxFiles(50)
+                            ->required(),
                     ])
                     ->action(function (array $data, RelationManager $livewire) {
                         foreach ($data['files'] as $filePath) {
@@ -134,6 +142,7 @@ class MediaRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->label('Adicionar Mídia / Tour')
                     ->after(function ($record) {
+                        // Lógica de descompactação do ZIP
                         if ($record->file_type === '360' && $record->path && pathinfo($record->path, PATHINFO_EXTENSION) === 'zip') {
                             $zipPath = Storage::disk('public')->path($record->path);
                             $extractPath = Storage::disk('public')->path('tours/' . $record->id);

@@ -2,66 +2,62 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\Project; 
 
 class ProjectController extends Controller
 {
-    // RETORNA OS DADOS JSON (USADO PELO JAVASCRIPT)
+    // 1. API: Retorna o JSON para o Javascript (Masterplan e Unidades)
     public function api($slug)
     {
-        $project = DB::table('projects')->where('slug', $slug)->first();
-
-        if (!$project) {
-            return response()->json(['error' => 'Projeto não encontrado'], 404);
-        }
-
-        $categories = DB::table('media_categories')
-            ->where('project_id', $project->id)
-            ->orderBy('sort_order')
-            ->get();
-
-        $media = DB::table('media_files')
-            ->whereIn('media_category_id', $categories->pluck('id'))
-            ->orderBy('sort_order')
-            ->get();
-            
-        $units = DB::table('units')
-            ->where('project_id', $project->id)
-            ->get();
-
-        $project->theme_config = json_decode($project->theme_config);
+        // CORREÇÃO AQUI: Mudamos de 'categories.media' para 'mediaCategories.media'
+        // Baseado no seu código do Filament, o relacionamento se chama 'mediaCategories'
+        $project = Project::where('slug', $slug)
+            ->where('active', true)
+            ->with(['units', 'mediaCategories.media']) 
+            ->firstOrFail();
 
         return response()->json([
             'project' => $project,
-            'categories' => $categories,
-            'media' => $media,
-            'units' => $units
+            'units' => $project->units,
+            // CORREÇÃO AQUI: O frontend espera 'categories', então enviamos o conteúdo de 'mediaCategories' dentro dessa chave
+            'categories' => $project->mediaCategories, 
+            'media' => $project->media, 
         ]);
     }
 
-    // MOSTRA A TELA DE INTRO (CAPA)
+    // 2. CAPA (INTRO): Tela de boas-vindas
     public function intro($slug)
     {
         $project = Project::where('slug', $slug)->where('active', true)->firstOrFail();
         
-        return view('projects.intro', compact('project'));
+        // Procura: projects/algarve/intro.blade.php
+        $viewName = "projects.{$slug}.intro";
+
+        if (view()->exists($viewName)) {
+            return view($viewName, compact('project'));
+        }
+
+        // Fallback
+        if (view()->exists('projects.intro')) {
+            return view('projects.intro', compact('project'));
+        }
+
+        abort(404, "Intro não encontrada.");
     }
 
-    // MOSTRA O SISTEMA PRINCIPAL (APP)
+    // 3. APP PRINCIPAL: O Painel Interativo
     public function app($slug)
     {
         $project = Project::where('slug', $slug)->where('active', true)->firstOrFail();
         
-        // 1. Tenta achar uma view específica: projects/nomedoslug/master.blade.php
+        // Procura: projects/algarve/master.blade.php
         $viewName = "projects.{$slug}.master";
         
-        // 2. Se não existir, usa a view padrão do sistema (Algarve)
-        if (!view()->exists($viewName)) {
-            $viewName = "projects.algarve.master"; 
+        if (view()->exists($viewName)) {
+            return view($viewName, compact('project'));
         }
 
-        return view($viewName, compact('project'));
+        return view('projects.master', compact('project'));
     }
 }

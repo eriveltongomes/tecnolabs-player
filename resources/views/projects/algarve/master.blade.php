@@ -34,11 +34,10 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         select option { background-color: #111827; color: white; padding: 10px; }
 
-        /* CONTROLES DE VÍDEO CUSTOMIZADOS 
-           Esconde o botão de fullscreen nativo para evitar que o X suma */
+        /* CONTROLES DE VÍDEO CUSTOMIZADOS */
         video::-webkit-media-controls-fullscreen-button { display: none !important; }
 
-        /* Estilização do Teclado Virtual (Dark Mode) */
+        /* Estilização do Teclado Virtual (Dark Mode ABNT Adaptado) */
         .simple-keyboard {
             background-color: rgba(15, 23, 42, 0.95) !important;
             border-top: 1px solid #C5A065 !important;
@@ -48,11 +47,19 @@
             left: 0;
             width: 100%;
             z-index: 9999;
-            display: none; /* Oculto por padrão */
+            display: none; 
             padding-bottom: 20px;
+            font-size: 1.2rem;
         }
-        .hg-button { background: #334155 !important; color: white !important; border-bottom: 2px solid #1e293b !important; }
+        .hg-button { background: #334155 !important; color: white !important; border-bottom: 2px solid #1e293b !important; height: 50px !important; }
         .hg-button:active { background: #C5A065 !important; color: black !important; }
+        
+        /* Destaque para teclas especiais */
+        .hg-button.hg-standardBtn[data-skbtn="@"], 
+        .hg-button.hg-standardBtn[data-skbtn=".com"] {
+            background: #1e293b !important;
+            border: 1px solid #C5A065 !important;
+        }
     </style>
 </head>
 
@@ -150,11 +157,9 @@
     </div>
 
     <div id="lightbox" class="fixed inset-0 z-[70] hidden bg-black/95 backdrop-blur-xl flex items-center justify-center p-8 opacity-0 transition-opacity duration-300 select-none">
-        
         <button onclick="closeLightbox()" class="absolute top-8 right-8 text-white/50 hover:text-white transition-colors z-50 bg-black/50 p-2 rounded-full border border-white/10 hover:border-[#C5A065]">
             <i data-lucide="x" class="w-8 h-8"></i>
         </button>
-        
         <button id="lbPrev" onclick="navigateLightbox(-1)" class="absolute left-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#C5A065] transition-all z-50 p-4 hover:scale-110">
             <i data-lucide="chevron-left" class="w-16 h-16"></i>
         </button>
@@ -163,7 +168,6 @@
         </button>
 
         <div id="touchArea" class="absolute inset-0 z-40" onmousedown="handleTouchStart(event)" onmouseup="handleTouchEnd(event)" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)"></div>
-        
         <img id="lightboxImage" src="" class="hidden max-w-full max-h-full border border-[#C5A065]/50 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-sm scale-95 transition-transform duration-300 relative z-30 pointer-events-none">
         
         <video id="lightboxVideo" controls controlsList="nodownload nofullscreen noremoteplayback" class="hidden max-w-full max-h-full border border-[#C5A065]/50 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-sm relative z-50">
@@ -184,44 +188,29 @@
         let globalData = null; 
         let filterStatus = 'all'; let filterBlock = 'all'; let filterFloor = 'all';
         let currentGalleryList = []; let currentImageIndex = 0; let filterDate = 'all';
-        let isGalleryMode = true; // Flag para saber se estamos em galeria ou vendo planta avulsa
+        let isGalleryMode = true;
 
         // --- GESTÃO DE INATIVIDADE (5 MINUTOS) ---
         let idleTime = 0;
-        const idleLimit = 5 * 60; // 5 minutos em segundos
-
+        const idleLimit = 5 * 60; 
         function timerIncrement() {
             idleTime++;
-            // Se passar do limite, volta pra home e atualiza
             if (idleTime >= idleLimit) {
-                // Só executa se não estiver na home ou se tiver algum modal aberto
-                const isHome = !document.getElementById('screenMenu').classList.contains('hidden');
                 const isModalOpen = !document.getElementById('lightbox').classList.contains('hidden') || !document.getElementById('modalUnitDetail').classList.contains('hidden');
-
-                if (!isHome || isModalOpen) {
-                    console.log("Inatividade detectada. Reiniciando...");
-                    closeLightbox();
-                    toggleUnitModal(false);
-                    goHome();
-                    // Reinicia o sistema para puxar atualizações (unidades vendidas, etc)
-                    initSystem(); 
-                }
+                console.log("Inatividade detectada. Redirecionando para Intro...");
+                window.location.href = '/'; 
                 idleTime = 0;
             }
         }
-
-        // Reseta o timer em qualquer interação
         function resetIdleTimer() { idleTime = 0; }
         document.body.addEventListener('mousemove', resetIdleTimer);
         document.body.addEventListener('mousedown', resetIdleTimer);
         document.body.addEventListener('keypress', resetIdleTimer);
         document.body.addEventListener('touchstart', resetIdleTimer);
         document.body.addEventListener('click', resetIdleTimer);
-        
-        // Inicia o contador de inatividade
         setInterval(timerIncrement, 1000);
 
-        // --- TECLADO VIRTUAL ---
+        // --- TECLADO VIRTUAL (ABNT 2) ---
         let keyboard; let selectedInput;
         function initKeyboard() {
             const Keyboard = window.SimpleKeyboard.default;
@@ -230,8 +219,8 @@
                 onKeyPress: button => onKeyPress(button),
                 theme: "hg-theme-default hg-layout-default myTheme",
                 layout: {
-                    'default': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'q w e r t y u i o p', 'a s d f g h j k l', '{shift} z x c v b n m @ .com', '{space}' ],
-                    'shift': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'Q W E R T Y U I O P', 'A S D F G H J K L', '{shift} Z X C V B N M @ .com', '{space}' ]
+                    'default': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'q w e r t y u i o p', 'a s d f g h j k l ç', '{shift} z x c v b n m @ .com', '_ . - {space}' ],
+                    'shift': [ '1 2 3 4 5 6 7 8 9 0 {bksp}', 'Q W E R T Y U I O P', 'A S D F G H J K L Ç', '{shift} Z X C V B N M @ .com', '_ . - {space}' ]
                 }
             });
             document.querySelectorAll(".input-keyboard").forEach(input => {
@@ -269,11 +258,9 @@
                 let response = await fetch(`/api/project/${projectSlug}`);
                 if(!response.ok) throw new Error(`Erro API: ${response.status}`);
                 globalData = await response.json();
-                
                 renderMenu(globalData.categories);
                 if(typeof lucide !== 'undefined') lucide.createIcons();
                 initKeyboard(); 
-
                 document.getElementById('loading').classList.add('opacity-0', 'pointer-events-none');
                 document.getElementById('app').classList.remove('opacity-0');
             } catch (error) {
@@ -290,13 +277,7 @@
             categories.forEach(cat => {
                 const btn = document.createElement('div');
                 let iconName = 'image'; const name = cat.name.toLowerCase();
-                if(name.includes('obra')) iconName = 'hard-hat';
-                else if(name.includes('planta')) iconName = 'ruler';
-                else if(name.includes('tour')) iconName = 'glasses';
-                else if(name.includes('disponibilidade')) iconName = 'list-checks';
-                else if(name.includes('vídeo')) iconName = 'play-circle';
-                else if(cat.type === 'masterplan') iconName = 'map';
-
+                if(name.includes('obra')) iconName = 'hard-hat'; else if(name.includes('planta')) iconName = 'ruler'; else if(name.includes('tour')) iconName = 'glasses'; else if(name.includes('disponibilidade')) iconName = 'list-checks'; else if(name.includes('vídeo')) iconName = 'play-circle'; else if(cat.type === 'masterplan') iconName = 'map';
                 btn.className = "group relative h-48 cursor-pointer bg-black/40 backdrop-blur-sm border border-[#C5A065]/30 hover:border-[#C5A065] hover:bg-black/60 transition-all duration-500 rounded-sm flex flex-col items-center justify-center gap-4 overflow-hidden shadow-lg";
                 btn.innerHTML = `<div class="absolute inset-0 bg-gradient-to-tr from-[#C5A065]/0 to-[#C5A065]/0 group-hover:to-[#C5A065]/10 transition-all duration-700"></div><div class="p-4 rounded-full border border-[#C5A065]/20 bg-[#C5A065]/5 group-hover:scale-110 group-hover:bg-[#C5A065] group-hover:text-black transition-all duration-500 text-[#C5A065]"><i data-lucide="${iconName}" class="w-8 h-8"></i></div><div class="text-center z-10"><h3 class="text-xl font-bold uppercase tracking-[0.15em] text-white group-hover:text-[#C5A065] transition-colors">${cat.name}</h3><p class="text-[10px] text-[#C5A065]/60 uppercase tracking-widest mt-1 group-hover:text-[#C5A065]/80">Clique para acessar</p></div><div class="absolute bottom-0 left-0 w-0 h-[2px] bg-[#C5A065] group-hover:w-full transition-all duration-700 ease-out"></div>`;
                 btn.onclick = () => openCategory(cat);
@@ -311,11 +292,9 @@
             document.getElementById('screenContent').classList.remove('hidden');
             const container = document.getElementById('mediaContainer'); container.innerHTML = ''; 
             container.className = "w-full h-full relative shadow-2xl border border-[#C5A065]/20 bg-gray-900/90 backdrop-blur-sm rounded-sm overflow-hidden";
-            
             const name = cat.name.toLowerCase();
-            if (name.includes('disponibilidade')) {
-                filterStatus = 'all'; filterBlock = 'all'; filterFloor = 'all'; renderAvailabilityTable(container);
-            } else if(cat.type === 'masterplan') { renderMasterplan(container); } 
+            if (name.includes('disponibilidade')) { filterStatus = 'all'; filterBlock = 'all'; filterFloor = 'all'; renderAvailabilityTable(container); } 
+            else if(cat.type === 'masterplan') { renderMasterplan(container); } 
             else { if(name.includes('obra')) { filterDate = 'all'; renderGallery(container, cat, true); } else { renderGallery(container, cat, false); } }
             lucide.createIcons();
         }
@@ -324,11 +303,10 @@
             container.innerHTML = '';
             container.className = "w-full h-full bg-gray-900 flex flex-row overflow-hidden"; 
 
-            // 1. ESQUERDA: FOTO DO PRÉDIO
+            // 1. ESQUERDA: FOTO DO PRÉDIO (Mantida Original)
             const buildingImage = globalData.project.facade_image ? '/storage/' + globalData.project.facade_image : '';
             const leftCol = document.createElement('div');
             leftCol.className = "w-[40%] h-full relative border-r border-[#C5A065]/20 hidden lg:block bg-black"; 
-            
             leftCol.innerHTML = `
                 <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('${buildingImage}');"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div> <div class="absolute bottom-8 left-8">
@@ -338,7 +316,7 @@
             `;
             container.appendChild(leftCol);
 
-            // 2. DIREITA: LISTA E FILTROS
+            // 2. DIREITA: LISTA
             const rightCol = document.createElement('div');
             rightCol.className = "w-full lg:w-[60%] h-full flex flex-col bg-gray-900 relative"; 
 
@@ -375,18 +353,12 @@
             scrollArea.id = "unitsScrollArea";
             scrollArea.className = "flex-grow overflow-y-auto p-8 hide-scrollbar scroll-smooth relative";
             
-            const floors = {};
-            let hasUnits = false;
-            
+            const floors = {}; let hasUnits = false;
             globalData.units.forEach(u => {
                 if(filterStatus === 'available' && u.status !== 'available') return;
                 if(filterBlock !== 'all' && (u.block || 'Torre Única') !== filterBlock) return;
                 if(filterFloor !== 'all' && u.floor != filterFloor) return;
-
-                const f = u.floor || 'Térreo';
-                if(!floors[f]) floors[f] = [];
-                floors[f].push(u);
-                hasUnits = true;
+                const f = u.floor || 'Térreo'; if(!floors[f]) floors[f] = []; floors[f].push(u); hasUnits = true;
             });
 
             if(!hasUnits) {
@@ -394,42 +366,24 @@
             } else {
                 const sortedFloors = Object.keys(floors).sort((a,b) => b - a);
                 let contentHtml = `<div class="space-y-12 pb-24">`;
-
                 sortedFloors.forEach(floor => {
                     contentHtml += `<div class="animate-fade-in"><div class="flex items-center gap-3 mb-4"><span class="bg-[#C5A065] text-black px-3 py-1 rounded text-xs font-bold shadow-lg">${floor}º ANDAR</span><div class="h-[1px] bg-[#C5A065]/20 flex-grow"></div></div><div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">`;
                     floors[floor].forEach(u => {
-                        let cardBg = "bg-green-900/20 border-green-500/30"; 
-                        let statusText = "Disponível";
-                        let statusDot = "bg-green-500 shadow-[0_0_8px_#22c55e]";
-                        let isClickable = true;
-
-                        if(u.status === 'sold') { 
-                            cardBg = "bg-red-900/20 border-red-500/30 opacity-60 grayscale-[0.5]"; 
-                            statusText = "Vendido"; statusDot = "bg-red-600"; isClickable = false; 
-                        }
-                        if(u.status === 'reserved') { 
-                            cardBg = "bg-yellow-900/20 border-yellow-500/30"; statusText = "Reservado"; statusDot = "bg-yellow-500";
-                        }
-                        if(u.status === 'blocked') { 
-                            cardBg = "bg-gray-800 border-gray-600/30 opacity-50"; statusText = "Bloqueado"; statusDot = "bg-gray-500"; isClickable = false; 
-                        }
-
+                        let cardBg = "bg-green-900/20 border-green-500/30"; let statusText = "Disponível"; let statusDot = "bg-green-500 shadow-[0_0_8px_#22c55e]"; let isClickable = true;
+                        if(u.status === 'sold') { cardBg = "bg-red-900/20 border-red-500/30 opacity-60 grayscale-[0.5]"; statusText = "Vendido"; statusDot = "bg-red-600"; isClickable = false; }
+                        if(u.status === 'reserved') { cardBg = "bg-yellow-900/20 border-yellow-500/30"; statusText = "Reservado"; statusDot = "bg-yellow-500"; }
+                        if(u.status === 'blocked') { cardBg = "bg-gray-800 border-gray-600/30 opacity-50"; statusText = "Bloqueado"; statusDot = "bg-gray-500"; isClickable = false; }
                         const clickAction = isClickable ? `onclick="openUnitDetails(${u.id})"` : '';
                         const cursorClass = isClickable ? 'cursor-pointer hover:scale-105 hover:bg-black/60 hover:border-[#C5A065]' : 'cursor-not-allowed';
+                        const floorplanBtn = u.floorplan_image ? `<button onclick="event.stopPropagation(); openStandaloneLightbox('/storage/${u.floorplan_image}', 'image')" class="text-[10px] text-[#C5A065] border border-[#C5A065]/30 hover:bg-[#C5A065] hover:text-black px-4 py-2 rounded-full transition-colors flex items-center gap-2 w-full justify-center font-bold tracking-wider"><i data-lucide="map" class="w-4 h-4"></i> VER PLANTA</button>` : '';
 
-                        // AQUI ESTAVA O ERRO: Chamando openLightbox com imagem e tipo.
-                        // CORREÇÃO: Chama openStandaloneLightbox()
-                        const floorplanBtn = u.floorplan_image ? `
-                                <button onclick="event.stopPropagation(); openStandaloneLightbox('/storage/${u.floorplan_image}', 'image')" class="text-[10px] text-[#C5A065] border border-[#C5A065]/30 hover:bg-[#C5A065] hover:text-black px-4 py-2 rounded-full transition-colors flex items-center gap-2 w-full justify-center font-bold tracking-wider">
-                                    <i data-lucide="map" class="w-4 h-4"></i> VER PLANTA
-                                </button>
-                                ` : '';
-
+                        // AQUI ESTÃO AS ALTERAÇÕES SOLICITADAS: BLOCO E TIPOLOGIA
                         contentHtml += `
                             <div ${clickAction} class="relative ${cardBg} border p-4 rounded ${cursorClass} flex flex-col items-center text-center transition-all group shadow-lg duration-300 backdrop-blur-sm">
                                 <span class="text-3xl font-bold text-white mb-2 group-hover:text-[#C5A065] transition-colors">${u.unit_number}</span>
-                                <div class="text-[10px] text-white/70 mb-4 flex flex-col gap-0.5">
-                                    <span class="uppercase tracking-wide font-bold">${u.typology || '-'}</span>
+                                <div class="text-[10px] text-white/70 mb-4 flex flex-col gap-0.5 w-full">
+                                    <span class="font-bold text-white/90 border-b border-white/10 pb-1 mb-1">${u.block || 'Torre Única'}</span>
+                                    <span class="uppercase tracking-wide font-bold text-[#C5A065]">${u.typology || 'Padrão'}</span>
                                     <span class="font-mono text-white/50">${u.area ? u.area + 'm²' : ''}</span>
                                 </div>
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/5 w-full justify-center mb-4">
@@ -464,7 +418,25 @@
             if(unit.floorplan_image) { imgEl.src = '/storage/' + unit.floorplan_image; imgEl.classList.remove('hidden'); placeholder.classList.add('hidden'); } else { imgEl.classList.add('hidden'); placeholder.classList.remove('hidden'); }
             toggleUnitModal(true);
         }
-        function toggleUnitModal(show) { const el = document.getElementById('modalUnitDetail'); if(show) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); hideKeyboard(); } }
+
+        // --- FUNÇÃO CORRIGIDA PARA LIMPAR FORMULÁRIO ---
+        function toggleUnitModal(show) { 
+            const el = document.getElementById('modalUnitDetail'); 
+            if(show) { 
+                el.classList.remove('hidden'); 
+                el.classList.add('flex'); 
+            } else { 
+                el.classList.add('hidden'); 
+                el.classList.remove('flex'); 
+                hideKeyboard(); 
+                // Limpa os campos
+                document.getElementById('leadName').value = '';
+                document.getElementById('leadPhone').value = '';
+                document.getElementById('leadEmail').value = '';
+                document.getElementById('btnSubmitLead').innerHTML = '<span>SOLICITAR MATERIAL</span> <i data-lucide="send" class="w-4 h-4"></i>';
+            } 
+        }
+
         function renderMasterplan(container) { const facadeUrl = globalData.project.facade_image ? '/storage/' + globalData.project.facade_image : ''; container.innerHTML = `<button onclick="goHome()" class="absolute top-6 left-6 z-50 bg-black/60 border border-[#C5A065]/50 text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-[#C5A065] hover:text-black transition-all backdrop-blur-md shadow-lg"><i data-lucide="arrow-left" class="w-4 h-4"></i> <span class="text-xs font-bold tracking-widest">MENU</span></button><div class="absolute inset-0 z-0 select-none"><img src="${facadeUrl}" class="w-full h-full object-cover" alt="Fachada"><div id="pinsLayer" class="absolute inset-0 z-10 w-full h-full"></div></div><div class="absolute bottom-8 left-8 z-20 pointer-events-none"><div class="pointer-events-auto bg-black/80 border-l-2 border-[#C5A065] p-6 backdrop-blur-md shadow-2xl animate-fade-in"><h3 class="text-2xl font-bold text-white mb-1 font-serif">IMPLANTAÇÃO</h3><p class="text-[#C5A065] text-xs uppercase tracking-widest mb-4">Selecione uma unidade</p><div class="flex gap-4 text-[10px] uppercase tracking-wider text-white/60"><div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_green]"></div> Disp.</div><div class="flex items-center gap-2"><div class="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_5px_red]"></div> Vendido</div></div></div></div>`; renderPins(); }
         
         function renderGallery(container, cat, showFilter = false) { 
@@ -472,128 +444,15 @@
         }
 
         function updateGalleryFilter(catId, value) { filterDate = value; const cat = globalData.categories.find(c => c.id == catId); const container = document.getElementById('mediaContainer'); renderGallery(container, cat, true); lucide.createIcons(); }
-        
-        // --- FUNÇÃO PARA ABRIR LIGHTBOX DE GALERIA ---
-        function openLightbox(index) { 
-            isGalleryMode = true; // Ativa modo galeria (setas aparecem)
-            currentImageIndex = index; 
-            updateLightboxContent(); 
-            const lb = document.getElementById('lightbox'); 
-            lb.classList.remove('hidden'); 
-            setTimeout(() => lb.classList.remove('opacity-0'), 10); 
-        }
-
-        // --- NOVA FUNÇÃO PARA ABRIR IMAGEM AVULSA (PLANTA) ---
-        function openStandaloneLightbox(url, type) {
-            isGalleryMode = false; // Desativa modo galeria (setas somem)
-            const lb = document.getElementById('lightbox');
-            const img = document.getElementById('lightboxImage');
-            const vid = document.getElementById('lightboxVideo');
-            const navPrev = document.getElementById('lbPrev');
-            const navNext = document.getElementById('lbNext');
-            const counter = document.getElementById('lbCounter');
-
-            // Esconde navegação
-            navPrev.classList.add('hidden');
-            navNext.classList.add('hidden');
-            counter.classList.add('hidden');
-
-            // Reseta mídia
-            img.classList.add('hidden');
-            vid.classList.add('hidden');
-            vid.pause();
-
-            // Mostra a imagem
-            img.src = url;
-            img.classList.remove('hidden');
-            img.classList.remove('scale-100');
-            img.classList.add('scale-95');
-            setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50);
-
-            // Abre o lightbox
-            lb.classList.remove('hidden');
-            setTimeout(() => lb.classList.remove('opacity-0'), 10);
-        }
-
-        function updateLightboxContent() { 
-            const m = currentGalleryList[currentImageIndex]; 
-            const url = '/storage/' + m.path; 
-            const isVideo = m.file_type === 'video' || url.endsWith('.mp4'); 
-            const img = document.getElementById('lightboxImage'); 
-            const vid = document.getElementById('lightboxVideo'); 
-            const vidSrc = document.getElementById('lightboxVideoSource'); 
-            const counter = document.getElementById('lbCurrent'); 
-            const total = document.getElementById('lbTotal'); 
-            
-            // Controle de visibilidade da navegação
-            const navPrev = document.getElementById('lbPrev');
-            const navNext = document.getElementById('lbNext');
-            const counterBox = document.getElementById('lbCounter');
-            
-            if(isGalleryMode) {
-                navPrev.classList.remove('hidden');
-                navNext.classList.remove('hidden');
-                counterBox.classList.remove('hidden');
-            } else {
-                navPrev.classList.add('hidden');
-                navNext.classList.add('hidden');
-                counterBox.classList.add('hidden');
-            }
-
-            counter.innerText = currentImageIndex + 1; 
-            total.innerText = currentGalleryList.length; 
-            img.classList.add('hidden'); 
-            vid.classList.add('hidden'); 
-            vid.pause(); 
-            
-            if (isVideo) { 
-                vidSrc.src = url; 
-                vid.load(); // Garante o recarregamento
-                vid.classList.remove('hidden'); 
-                setTimeout(() => vid.play(), 300); 
-            } else { 
-                img.src = url; 
-                img.classList.remove('hidden'); 
-                img.classList.remove('scale-100'); 
-                img.classList.add('scale-95'); 
-                setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50); 
-            } 
-        }
-
-        function navigateLightbox(direction) { 
-            if(!isGalleryMode) return;
-            let newIndex = currentImageIndex + direction; 
-            if(newIndex >= currentGalleryList.length) newIndex = 0; 
-            if(newIndex < 0) newIndex = currentGalleryList.length - 1; 
-            currentImageIndex = newIndex; 
-            updateLightboxContent(); 
-        }
-
-        function closeLightbox() { 
-            const lb = document.getElementById('lightbox'); 
-            const vid = document.getElementById('lightboxVideo'); 
-            lb.classList.add('opacity-0'); 
-            setTimeout(() => { 
-                lb.classList.add('hidden'); 
-                vid.pause(); 
-                // Não limpamos o src aqui para evitar bugs de loading, mas garantimos o pause
-            }, 300); 
-        }
-
-        let touchStartX = 0; let touchEndX = 0; 
-        function handleTouchStart(e) { touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; } 
-        function handleTouchEnd(e) { touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; handleSwipe(); } 
-        function handleSwipe() { 
-            if(!isGalleryMode) return;
-            const threshold = 50; 
-            if (touchEndX < touchStartX - threshold) navigateLightbox(1); 
-            if (touchEndX > touchStartX + threshold) navigateLightbox(-1); 
-        }
-        
+        function openLightbox(index) { isGalleryMode = true; currentImageIndex = index; updateLightboxContent(); const lb = document.getElementById('lightbox'); lb.classList.remove('hidden'); setTimeout(() => lb.classList.remove('opacity-0'), 10); }
+        function openStandaloneLightbox(url, type) { isGalleryMode = false; const lb = document.getElementById('lightbox'); const img = document.getElementById('lightboxImage'); const vid = document.getElementById('lightboxVideo'); const navPrev = document.getElementById('lbPrev'); const navNext = document.getElementById('lbNext'); const counter = document.getElementById('lbCounter'); navPrev.classList.add('hidden'); navNext.classList.add('hidden'); counter.classList.add('hidden'); img.classList.add('hidden'); vid.classList.add('hidden'); vid.pause(); img.src = url; img.classList.remove('hidden'); img.classList.remove('scale-100'); img.classList.add('scale-95'); setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50); lb.classList.remove('hidden'); setTimeout(() => lb.classList.remove('opacity-0'), 10); }
+        function updateLightboxContent() { const m = currentGalleryList[currentImageIndex]; const url = '/storage/' + m.path; const isVideo = m.file_type === 'video' || url.endsWith('.mp4'); const img = document.getElementById('lightboxImage'); const vid = document.getElementById('lightboxVideo'); const vidSrc = document.getElementById('lightboxVideoSource'); const counter = document.getElementById('lbCurrent'); const total = document.getElementById('lbTotal'); const navPrev = document.getElementById('lbPrev'); const navNext = document.getElementById('lbNext'); const counterBox = document.getElementById('lbCounter'); if(isGalleryMode) { navPrev.classList.remove('hidden'); navNext.classList.remove('hidden'); counterBox.classList.remove('hidden'); } else { navPrev.classList.add('hidden'); navNext.classList.add('hidden'); counterBox.classList.add('hidden'); } counter.innerText = currentImageIndex + 1; total.innerText = currentGalleryList.length; img.classList.add('hidden'); vid.classList.add('hidden'); vid.pause(); if (isVideo) { vidSrc.src = url; vid.load(); vid.classList.remove('hidden'); setTimeout(() => vid.play(), 300); } else { img.src = url; img.classList.remove('hidden'); img.classList.remove('scale-100'); img.classList.add('scale-95'); setTimeout(() => { img.classList.remove('scale-95'); img.classList.add('scale-100'); }, 50); } }
+        function navigateLightbox(direction) { if(!isGalleryMode) return; let newIndex = currentImageIndex + direction; if(newIndex >= currentGalleryList.length) newIndex = 0; if(newIndex < 0) newIndex = currentGalleryList.length - 1; currentImageIndex = newIndex; updateLightboxContent(); }
+        function closeLightbox() { const lb = document.getElementById('lightbox'); const vid = document.getElementById('lightboxVideo'); lb.classList.add('opacity-0'); setTimeout(() => { lb.classList.add('hidden'); vid.pause(); }, 300); }
+        let touchStartX = 0; let touchEndX = 0; function handleTouchStart(e) { touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; } function handleTouchEnd(e) { touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX; handleSwipe(); } function handleSwipe() { if(!isGalleryMode) return; const threshold = 50; if (touchEndX < touchStartX - threshold) navigateLightbox(1); if (touchEndX > touchStartX + threshold) navigateLightbox(-1); }
         function renderPins() { const pinsLayer = document.getElementById('pinsLayer'); globalData.units.forEach(u => { if(u.map_x && u.map_y) { const pin = document.createElement('div'); pin.className = "absolute cursor-pointer group hover:z-50 flex items-center justify-center"; pin.style.width = "10%"; pin.style.height = "7%"; pin.style.left = (u.map_x.toString().includes('%') ? u.map_x : u.map_x + '%'); pin.style.top = (u.map_y.toString().includes('%') ? u.map_y : u.map_y + '%'); pin.style.transform = "translate(-50%, -50%)"; pin.innerHTML = `<div class="absolute inset-0 transition-all duration-200 opacity-0 group-hover:opacity-100 border border-[#C5A065] bg-[#C5A065]/20 shadow-[0_0_15px_rgba(197,160,101,0.4)]"></div>`; pin.onclick = () => openUnitDetails(u.id); pinsLayer.appendChild(pin); } }); }
         let scrollInterval; function startScroll(speed) { const area = document.getElementById('unitsScrollArea'); if(area) scrollInterval = setInterval(() => { area.scrollBy({ top: speed * 5, behavior: 'auto' }); }, 16); } function stopScroll() { clearInterval(scrollInterval); } function goHome() { document.getElementById('screenContent').classList.add('hidden'); document.getElementById('screenMenu').classList.remove('hidden'); }
         async function submitLead(e) { e.preventDefault(); const btn = document.getElementById('btnSubmitLead'); btn.innerHTML = "ENVIANDO..."; const data = { project_slug: projectSlug, name: document.getElementById('leadName').value, phone: document.getElementById('leadPhone').value, email: document.getElementById('leadEmail').value, message: 'Interesse: ' + document.getElementById('leadUnit').value }; try { const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if(response.ok) { alert("Sucesso! Entraremos em contato."); toggleUnitModal(false); } } catch(err) { alert("Erro ao enviar."); } btn.innerHTML = "SOLICITAR MATERIAL"; }
-
         window.addEventListener('load', initSystem);
     </script>
 </body>

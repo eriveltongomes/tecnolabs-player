@@ -33,14 +33,14 @@ class Project extends Model
 
     // Relação com Categorias de Mídia (Álbuns)
     // ATENÇÃO: O nome aqui é 'mediaCategories' (camelCase)
-    public function mediaCategories(): HasMany
-    {
-        return $this->hasMany(MediaCategory::class);
-    }
+    public function mediaCategories()
+{
+    return $this->hasMany(MediaCategory::class);
+}
 
     // Relação com Arquivos de Mídia (Fotos/Vídeos)
-    public function media(): HasMany
-    {
-        return $this->hasMany(MediaFile::class);
-    }
+    public function media()
+{
+    return $this->hasMany(Media::class);
+}
 }
