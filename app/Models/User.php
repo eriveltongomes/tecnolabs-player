@@ -6,8 +6,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -44,5 +46,16 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Define quem pode acessar o painel administrativo em produção.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Libera acesso para emails do domínio da sua empresa ou retorna true para todos (cuidado)
+        // Se quiser liberar para todos usuários cadastrados enquanto testa, use: return true;
+        
+        return str_ends_with($this->email, '@tecnolabs.info') || $this->email === 'erivelton@tecnolabs.info';
     }
 }

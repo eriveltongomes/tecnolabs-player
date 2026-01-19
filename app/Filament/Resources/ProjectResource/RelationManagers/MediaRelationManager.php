@@ -49,14 +49,13 @@ class MediaRelationManager extends RelationManager
                     FileUpload::make('path')
                         ->label(fn (Forms\Get $get) => $get('file_type') === '360' ? 'Arquivo ZIP (Padrão)' : 'Arquivo de Mídia')
                         ->helperText(fn (Forms\Get $get) => $get('file_type') === '360' ? 'Atenção: Use apenas formato .ZIP (Não use .7z ou .rar). O index.html deve estar dentro.' : '')
-                        // ATUALIZAÇÃO AQUI: Adicionei 'application/octet-stream' e 'application/x-zip' para garantir que qualquer ZIP passe
                         ->acceptedFileTypes([
                             'image/*', 
                             'video/mp4', 
                             'application/zip', 
                             'application/x-zip-compressed', 
                             'application/x-zip', 
-                            'application/octet-stream' // Zips do Windows as vezes vem assim
+                            'application/octet-stream'
                         ])
                         ->disk('public')
                         ->directory('project-media')
@@ -83,18 +82,19 @@ class MediaRelationManager extends RelationManager
                         ->disk('public')
                         ->height('180px')
                         ->width('100%')
-                        // A CORREÇÃO ESTÁ AQUI: Usamos ?-> para evitar o erro "on null"
+                        // A CORREÇÃO ESTÁ AQUI: ?->
                         ->visible(fn ($record) => $record?->file_type === 'image')
                         ->extraImgAttributes(['class' => 'object-cover rounded-t-lg']),
 
                     // 2. SE NÃO FOR IMAGEM (VÍDEO/TOUR): MOSTRA UM ÍCONE GRANDE
                     TextColumn::make('placeholder_icon')
+                        // A CORREÇÃO ESTÁ AQUI: ?->
                         ->default(fn ($record) => match($record?->file_type) {
                             'video' => '🎬',
                             '360' => '🔄',
                             default => '📁'
                         })
-                        // A CORREÇÃO ESTÁ AQUI TAMBÉM
+                        // A CORREÇÃO ESTÁ AQUI TAMBÉM: ?->
                         ->visible(fn ($record) => $record?->file_type !== 'image')
                         ->extraAttributes(['class' => 'h-[180px] w-full flex items-center justify-center bg-gray-100 text-6xl rounded-t-lg select-none']),
 
