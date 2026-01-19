@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('projects.algarve.intro'); // <-- ISSO ABRE A INTRO
 });
 
 // 1. Rota da API (Fornece os dados JSON para o Javascript do Masterplan)
