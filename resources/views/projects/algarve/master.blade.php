@@ -71,7 +71,7 @@
             <div class="h-24 flex items-center justify-center relative animate-fade-in">
                 <img src="/storage/algarve/logo.png" class="h-full object-contain drop-shadow-2xl pointer-events-none" alt="Logo">
             </div>
-            <p class="mt-2 text-[#C5A065] tracking-[0.4em] uppercase text-[10px] font-bold shadow-black drop-shadow-md">High End Residence</p>
+            <p class="mt-2 text-[#C5A065] tracking-[0.4em] uppercase text-[10px] font-bold shadow-black drop-shadow-md">Painel Interativo</p>
         </header>
 
         <main class="flex-grow flex items-center justify-center p-4 w-full max-w-[1920px] mx-auto z-10 overflow-hidden">
